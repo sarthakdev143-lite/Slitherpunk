@@ -143,7 +143,7 @@ export const useSnakeGame = (canvasContextRef: CanvasContextRef): UseSnakeGameRe
         setIsGameOver(true);
         setIsGameStarted(false); // Game is no longer started
         setGameMessage(`Game Over! Your score: ${score}`);
-    }, [score]);
+    }, []); // Removed 'score' dependency to fix ESLint warning
 
     /**
      * Applies the effect of a power-up.
@@ -170,7 +170,7 @@ export const useSnakeGame = (canvasContextRef: CanvasContextRef): UseSnakeGameRe
             }
 
             const head: SnakeSegment = { x: prevSnake[0].x, y: prevSnake[0].y };
-            let newSnake: SnakeSegment[] = [...prevSnake];
+            const newSnake: SnakeSegment[] = [...prevSnake]; // Changed to const to fix ESLint error
             let collectibleEaten: boolean = false; // Flag to track if any collectible was eaten
 
             // Move the snake's head based on current direction
@@ -217,13 +217,19 @@ export const useSnakeGame = (canvasContextRef: CanvasContextRef): UseSnakeGameRe
 
             // Check for collisions with the updated snake
             if (checkCollision(newSnake)) {
-                gameOver();
+                // Use setScore to capture current score in gameOver message
+                setScore((currentScore) => {
+                    setIsGameOver(true);
+                    setIsGameStarted(false);
+                    setGameMessage(`Game Over! Your score: ${currentScore}`);
+                    return currentScore;
+                });
                 return prevSnake; // Return previous snake to show final state before game over
             } else {
                 return newSnake;
             }
         });
-    }, [direction, food, powerUp, isGameOver, activePowerUp, score, checkCollision, generateCollectible, applyPowerUpEffect, gameOver]);
+    }, [direction, food, powerUp, isGameOver, activePowerUp, checkCollision, generateCollectible, applyPowerUpEffect]);
 
 
     /**
@@ -331,7 +337,6 @@ export const useSnakeGame = (canvasContextRef: CanvasContextRef): UseSnakeGameRe
             }
         }
 
-        // Cleanup function
         return () => {
             if (gameIntervalId) {
                 clearInterval(gameIntervalId);
@@ -368,6 +373,6 @@ export const useSnakeGame = (canvasContextRef: CanvasContextRef): UseSnakeGameRe
     return {
         snake, food, powerUp, activePowerUp, direction, score,
         isGameOver, isGameStarted, gameMessage,
-        initGame, startGame, changeDirection, // Expose changeDirection for UI controls
+        initGame, startGame, changeDirection, 
     };
 };
