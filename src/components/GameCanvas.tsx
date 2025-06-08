@@ -265,7 +265,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
             <canvas
                 id="gameCanvas"
                 ref={canvasRef}
-                className="bg-gradient-to-br from-gray-800 via-gray-900 to-black border-4 border-purple-600/50 rounded-xl shadow-2xl cursor-pointer touch-none transition-all duration-300 hover:border-purple-500/70"
+                className="bg-gray-900 border-4 rounded-xl shadow-2xl cursor-pointer touch-none transition-all duration-300 border-purple-500/70"
                 onTouchStart={handleTouchStart}
                 onTouchEnd={handleTouchEnd}
                 onTouchMove={handleTouchMove}
