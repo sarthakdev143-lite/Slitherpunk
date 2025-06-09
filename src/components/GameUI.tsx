@@ -9,7 +9,6 @@ interface GameUIProps {
     activePowerUp: ActivePowerUp | null;
     startGame: () => void;
     initGame: () => void;
-    pauseGame?: () => void;
     isPaused?: boolean;
 }
 
