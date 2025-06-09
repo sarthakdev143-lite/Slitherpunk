@@ -136,16 +136,6 @@ export const useSnakeGame = (canvasContextRef: CanvasContextRef): UseSnakeGameRe
     }, []);
 
     /**
-     * Sets the game to an over state.
-     * Stops the game loop, displays message, and shows restart button.
-     */
-    // const gameOver = useCallback((): void => {
-    //     setIsGameOver(true);
-    //     setIsGameStarted(false); // Game is no longer started
-    //     setGameMessage(`Game Over! Your score: ${score}`);
-    // }, []); // Removed 'score' dependency to fix ESLint warning
-
-    /**
      * Applies the effect of a power-up.
      * @param {'speed' | 'freeze' | 'doubleScore'} type The type of power-up.
      */
@@ -221,7 +211,6 @@ export const useSnakeGame = (canvasContextRef: CanvasContextRef): UseSnakeGameRe
                 setScore((currentScore) => {
                     setIsGameOver(true);
                     setIsGameStarted(false);
-                    setGameMessage(`Game Over! Your score: ${currentScore}`);
                     return currentScore;
                 });
                 return prevSnake; // Return previous snake to show final state before game over

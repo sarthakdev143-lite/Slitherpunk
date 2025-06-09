@@ -20,7 +20,7 @@ export default function App() {
     return (
         <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 p-4 text-gray-100">
             <h1 style={{ fontFamily: '"Press Start 2P", monospace' }} className="z-10 text-4xl sm:text-[2rem] mb-6 text-center bg-gray-900/70 w-fit px-6.5 mx-auto py-3.5 rounded-md border-4 border-fuchsia-400 shadow-[4px_4px_0_#000] tracking-widest uppercase absolute top-[4%]">
-                <span className="text-fuchsia-300 drop-shadow-[2px_2px_0_rgba(0,0,0,0.8)] whitespace-nowrap">snak3</span>
+                <span className="text-fuchsia-300 drop-shadow-[2px_2px_0_rgba(0,0,0,0.8)] whitespace-nowrap">Slitherpunk</span>
             </h1>
 
             <div className="flex relative">
