@@ -15,7 +15,7 @@ interface GameUIProps {
 
 export const GameUI: React.FC<GameUIProps> = ({
     score, isGameStarted, isGameOver, gameMessage, activePowerUp,
-    startGame, initGame, pauseGame, isPaused = false
+    startGame, initGame, isPaused = false
 }) => {
     // Power-up icon mapping
     const getPowerUpIcon = (type: string) => {
