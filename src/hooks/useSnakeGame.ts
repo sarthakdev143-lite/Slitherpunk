@@ -317,7 +317,7 @@ export const useSnakeGame = (canvasContextRef: CanvasContextRef): UseSnakeGameRe
 
             // Check for collision with food
             if (food && head.x === food.x && head.y === food.y) {
-                const pointsToAdd = (activePowerUp && (activePowerUp.type === 'doubleScore' || activePowerUp.type === 'snailTime')) ? 2 : 1 / 2;
+                const pointsToAdd = (activePowerUp && (activePowerUp.type === 'doubleScore' || activePowerUp.type === 'snailTime')) ? 2 : 1;
                 setScore((prevScore: number) => prevScore + pointsToAdd);
                 collectibleEaten = true;
                 setFood(null);
