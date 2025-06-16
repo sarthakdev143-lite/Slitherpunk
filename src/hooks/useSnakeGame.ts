@@ -36,15 +36,14 @@ const POWERUP_DURATIONS = {
     doubleScore: 8000,    // 8 seconds
     speedBoost: 6000,     // 6 seconds
     snailTime: 12000,     // 12 seconds
-    blackoutMode: 8000,   // 8 seconds
+    blackoutMode: 8000,   // 8 seconds // Initially Doesn't work 
     goldenApple: 0,       // Instant
     mysteryBox: 0         // Instant (will be replaced by random powerup)
 };
 
 // Powerup spawn chances (out of 100)
 const POWERUP_SPAWN_CHANCES = {
-    // ghostTime: 12,
-    ghostTime: 1200,
+    ghostTime: 12,
     magnetHead: 15,
     doubleScore: 18,
     goldenApple: 8,
@@ -318,7 +317,7 @@ export const useSnakeGame = (canvasContextRef: CanvasContextRef): UseSnakeGameRe
 
             // Check for collision with food
             if (food && head.x === food.x && head.y === food.y) {
-                const pointsToAdd = (activePowerUp && (activePowerUp.type === 'doubleScore' || activePowerUp.type === 'snailTime')) ? 2 : 1/2;
+                const pointsToAdd = (activePowerUp && (activePowerUp.type === 'doubleScore' || activePowerUp.type === 'snailTime')) ? 2 : 1 / 2;
                 setScore((prevScore: number) => prevScore + pointsToAdd);
                 collectibleEaten = true;
                 setFood(null);
