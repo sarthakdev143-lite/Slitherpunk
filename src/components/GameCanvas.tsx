@@ -139,9 +139,14 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
             const glow = Math.sin(time) * 0.4 + 0.6;
 
             const colors = {
-                speed: { primary: `rgba(155, 89, 182, ${glow})`, secondary: `rgba(125, 60, 152, ${glow})` },
-                freeze: { primary: `rgba(52, 152, 219, ${glow})`, secondary: `rgba(41, 128, 185, ${glow})` },
-                doubleScore: { primary: `rgba(241, 196, 15, ${glow})`, secondary: `rgba(243, 156, 18, ${glow})` }
+                speedBoost: { primary: `rgba(155, 89, 182, ${glow})`, secondary: `rgba(125, 60, 152, ${glow})` },
+                doubleScore: { primary: `rgba(241, 196, 15, ${glow})`, secondary: `rgba(243, 156, 18, ${glow})` },
+                ghostTime: { primary: `rgba(75, 192, 192, ${glow})`, secondary: `rgba(54, 162, 235, ${glow})` },
+                magnetHead: { primary: `rgba(255, 127, 80, ${glow})`, secondary: `rgba(233, 100, 25, ${glow})` },
+                goldenApple: { primary: `rgba(255, 215, 0, ${glow})`, secondary: `rgba(230, 190, 0, ${glow})` },
+                snailTime: { primary: `rgba(54, 162, 235, ${glow})`, secondary: `rgba(75, 192, 192, ${glow})` },
+                mysteryBox: { primary: `rgba(255, 99, 132, ${glow})`, secondary: `rgba(220, 53, 69, ${glow})` },
+                blackout: { primary: `rgba(64, 64, 64, ${glow})`, secondary: `rgba(49, 49, 49, ${glow})` },
             };
 
             const powerUpGradient = ctx.createRadialGradient(
@@ -176,9 +181,14 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
             ctx.fillStyle = 'white';
 
             const icons = {
-                speed: '⚡',
-                freeze: '❄️',
-                doubleScore: '2×'
+                speedBoost: '⚡',
+                doubleScore: '2×',
+                ghostTime: '👻',
+                magnetHead: '🧲',
+                goldenApple: '🍎',
+                snailTime: '🐌',
+                mysteryBox: '🎁',
+                blackout: '⚫️'
             };
 
             ctx.fillText(

@@ -9,42 +9,37 @@ interface GameUIProps {
     activePowerUp: ActivePowerUp | null;
     startGame: () => void;
     initGame: () => void;
-    isPaused?: boolean;
 }
 
 export const GameUI: React.FC<GameUIProps> = ({
     score, isGameStarted, isGameOver, gameMessage, activePowerUp,
-    startGame, initGame, isPaused = false
+    startGame, initGame
 }) => {
     // Power-up icon mapping
     const getPowerUpIcon = (type: string) => {
         switch (type) {
-            case 'speed': return '⚡';
-            case 'freeze': return '❄️';
-            case 'doubleScore': return '2×';
+            case 'speedBoost': return '⚡';
+            case 'doubleScore': return '2×'; 
+            case 'ghostTime': return '👻';
+            case 'magnetHead': return '🧲';
+            case 'goldenApple': return '🍎';
+            case 'snailTime': return '🐌';
+            case 'mysteryBox': return '🎁';
+            case 'blackout': return '⚫️';
             default: return '✨';
         }
     };
 
     const getPowerUpConfig = (type: string) => {
         switch (type) {
-            case 'speed':
+            case 'speedBoost':
                 return {
                     gradient: 'from-purple-500 via-pink-500 to-purple-600',
                     border: 'border-purple-400',
                     shadow: 'shadow-[0_0_25px_rgba(168,85,247,0.4)]',
                     glow: 'from-purple-400 to-pink-400',
-                    name: 'SPEED BOOST',
+                    name: '⚡',
                     description: 'Lightning Fast!'
-                };
-            case 'freeze':
-                return {
-                    gradient: 'from-cyan-400 via-blue-500 to-cyan-600',
-                    border: 'border-cyan-400',
-                    shadow: 'shadow-[0_0_25px_rgba(34,211,238,0.4)]',
-                    glow: 'from-cyan-400 to-blue-400',
-                    name: 'TIME FREEZE',
-                    description: 'Enemies Frozen!'
                 };
             case 'doubleScore':
                 return {
@@ -52,8 +47,62 @@ export const GameUI: React.FC<GameUIProps> = ({
                     border: 'border-yellow-400',
                     shadow: 'shadow-[0_0_25px_rgba(251,191,36,0.4)]',
                     glow: 'from-yellow-400 to-orange-400',
-                    name: 'DOUBLE SCORE',
+                    name: '2×',
                     description: '2x Points!'
+                };
+            case 'ghostTime':
+                return {
+                    gradient: 'from-gray-500 via-gray-600 to-gray-700',
+                    border: 'border-gray-500',
+                    shadow: 'shadow-[0_0_25px_rgba(110,110,110,0.4)]',
+                    glow: 'from-gray-500 to-gray-600',
+                    name: '👻',
+                    description: 'Ghost Mode!'
+                };
+            case 'magnetHead':
+                return {
+                    gradient: 'from-purple-500 via-pink-500 to-purple-600',
+                    border: 'border-purple-400',
+                    shadow: 'shadow-[0_0_25px_rgba(168,85,247,0.4)]',
+                    glow: 'from-purple-400 to-pink-400',
+                    name: '🧲',
+                    description: 'Magnetic Attraction!'
+                };
+            case 'goldenApple':
+                return {
+                    gradient: 'from-yellow-400 via-orange-500 to-yellow-600',
+                    border: 'border-yellow-400',
+                    shadow: 'shadow-[0_0_25px_rgba(251,191,36,0.4)]',
+                    glow: 'from-yellow-400 to-orange-400',
+                    name: '🍎',
+                    description: 'Golden Apple!'
+                };
+            case 'snailTime':
+                return {
+                    gradient: 'from-green-500 via-emerald-500 to-green-600',
+                    border: 'border-green-400',
+                    shadow: 'shadow-[0_0_25px_rgba(34,197,94,0.4)]',
+                    glow: 'from-green-500 to-emerald-500',
+                    name: '🐌',
+                    description: 'Snail Speed!'
+                };
+            case 'mysteryBox':
+                return {
+                    gradient: 'from-gray-500 via-gray-600 to-gray-700',
+                    border: 'border-gray-500',
+                    shadow: 'shadow-[0_0_25px_rgba(110,110,110,0.4)]',
+                    glow: 'from-gray-500 to-gray-600',
+                    name: '🎁',
+                    description: 'Mystery Box!'
+                };
+            case 'blackout':
+                return {
+                    gradient: 'from-black via-black to-black',
+                    border: 'border-black',
+                    shadow: 'shadow-[0_0_25px_rgba(0,0,0,0.4)]',
+                    glow: 'from-black to-black',
+                    name: '⚫️',
+                    description: 'Blackout!'
                 };
             default:
                 return {
@@ -64,8 +113,8 @@ export const GameUI: React.FC<GameUIProps> = ({
                     name: 'POWER UP',
                     description: 'Special Effect!'
                 };
-        }
-    };
+        };
+    }
 
     const getMessageStyle = (message: string) => {
         const lowerMessage = message.toLowerCase();
@@ -76,14 +125,6 @@ export const GameUI: React.FC<GameUIProps> = ({
                 shadow: 'shadow-[0_0_25px_rgba(239,68,68,0.4)]',
                 text: 'text-red-300',
                 icon: '💀'
-            };
-        } else if (lowerMessage.includes('paused')) {
-            return {
-                gradient: 'from-yellow-500 via-orange-500 to-yellow-600',
-                border: 'border-yellow-400',
-                shadow: 'shadow-[0_0_25px_rgba(251,191,36,0.4)]',
-                text: 'text-yellow-300',
-                icon: '⏸️'
             };
         } else if (lowerMessage.includes('level') || lowerMessage.includes('bonus') || lowerMessage.includes('great')) {
             return {
@@ -193,7 +234,7 @@ export const GameUI: React.FC<GameUIProps> = ({
 
             {/* Game Start Buttons - Neon Arcade Style */}
             <div className="flex flex-col items-center gap-4 w-full">
-                {!isGameStarted && !isGameOver && !isPaused && (
+                {!isGameStarted && !isGameOver && (
                     <button
                         onClick={startGame}
                         style={{ fontFamily: '"Press Start 2P", monospace' }}

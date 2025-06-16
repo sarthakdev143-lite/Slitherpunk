@@ -12,18 +12,19 @@ export interface Food {
   y: number;
 }
 
-// Represents a power-up item on the canvas
+export type PowerUpType = 'ghostTime' | 'magnetHead' | 'doubleScore' | 'goldenApple' | 'speedBoost' | 'snailTime' | 'mysteryBox' | 'blackoutMode';
+
 export interface PowerUp {
-  x: number;
-  y: number;
-  type: 'speed' | 'freeze' | 'doubleScore';
+  type: PowerUpType;
+  endTime: number;
+  isInstant?: boolean;
 }
 
 // Represents an active power-up after it's been collected
-export interface ActivePowerUp {
-  type: 'speed' | 'freeze' | 'doubleScore';
-  endTime: number; // Timestamp when the power-up expires
+export interface ActivePowerUp extends PowerUp {
+  startTime: number;
 }
+
 
 // Type for canvas context reference
 export type CanvasContextRef = React.MutableRefObject<CanvasRenderingContext2D | null>;

@@ -1,11 +1,11 @@
 // src/hooks/useSnakeGame.ts
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
-    GRID_SIZE, INITIAL_SNAKE_SPEED_MS, POWER_UP_DURATION_MS,
-    CANVAS_WIDTH, CANVAS_HEIGHT, POWER_UP_SPAWN_CHANCE,
+    GRID_SIZE, INITIAL_SNAKE_SPEED_MS,
+    CANVAS_WIDTH, CANVAS_HEIGHT,
     LEFT_KEY, UP_KEY, RIGHT_KEY, DOWN_KEY
-} from '../constants';
-import { SnakeSegment, Food, PowerUp, ActivePowerUp, CanvasContextRef } from '../types';
+} from '@/constants';
+import { SnakeSegment, Food, PowerUp, PowerUpType, ActivePowerUp, CanvasContextRef } from '@/types';
 
 interface UseSnakeGameReturn {
     snake: SnakeSegment[];
@@ -21,6 +21,34 @@ interface UseSnakeGameReturn {
     startGame: () => void;
     changeDirection: (keyCode: number) => void; // Expose changeDirection for touch controls
 }
+
+interface Position {
+    x: number;
+    y: number;
+}
+
+const POWERUP_DURATIONS = {
+    ghostTime: 5000,      // 5 seconds
+    magnetHead: 10000,    // 10 seconds
+    doubleScore: 8000,    // 8 seconds
+    speedBoost: 6000,     // 6 seconds
+    snailTime: 12000,     // 12 seconds
+    blackoutMode: 8000,   // 8 seconds
+    goldenApple: 0,       // Instant
+    mysteryBox: 0         // Instant (will be replaced by random powerup)
+};
+
+// Powerup spawn chances (out of 100)
+const POWERUP_SPAWN_CHANCES = {
+    ghostTime: 12,
+    magnetHead: 15,
+    doubleScore: 18,
+    goldenApple: 8,
+    speedBoost: 12,
+    snailTime: 10,
+    mysteryBox: 5,
+    blackoutMode: 8
+};
 
 export const useSnakeGame = (canvasContextRef: CanvasContextRef): UseSnakeGameReturn => {
     // State variables for the game
@@ -95,18 +123,22 @@ export const useSnakeGame = (canvasContextRef: CanvasContextRef): UseSnakeGameRe
      * @param {SnakeSegment[]} currentSnake The current snake array.
      */
     const generateCollectible = useCallback((currentSnake: SnakeSegment[]): void => {
-        const shouldSpawnPowerUp = Math.random() < POWER_UP_SPAWN_CHANCE && !powerUp;
+        // Choose a random power-up type to determine spawn chance
+        const types: PowerUpType[] = ['ghostTime', 'magnetHead', 'doubleScore', 'goldenApple', 'speedBoost', 'snailTime', 'mysteryBox', 'blackoutMode'];
+        const randomType = types[Math.floor(Math.random() * types.length)];
+        const shouldSpawnPowerUp = Math.random() < (POWERUP_SPAWN_CHANCES[randomType] / 100) && !powerUp;
 
         if (shouldSpawnPowerUp) {
-            const types: ('speed' | 'freeze' | 'doubleScore')[] = ['speed', 'freeze', 'doubleScore'];
-            const randomType = types[Math.floor(Math.random() * types.length)];
             const newPowerUpPos = generateCollectiblePosition(currentSnake, food, powerUp);
-            setPowerUp({ ...newPowerUpPos, type: randomType });
-            setFood(null); // Clear food when a power-up spawns
+            setPowerUp({
+                ...newPowerUpPos,
+                type: randomType,
+                endTime: Date.now() + (POWERUP_DURATIONS[randomType] || 0),
+                isInstant: (POWERUP_DURATIONS[randomType] || 0) === 0
+            });
         } else {
             const newFoodPos = generateCollectiblePosition(currentSnake, food, powerUp);
             setFood(newFoodPos);
-            setPowerUp(null); // Clear power-up when food spawns
         }
     }, [generateCollectiblePosition, food, powerUp]);
 
@@ -136,14 +168,70 @@ export const useSnakeGame = (canvasContextRef: CanvasContextRef): UseSnakeGameRe
     }, []);
 
     /**
-     * Applies the effect of a power-up.
-     * @param {'speed' | 'freeze' | 'doubleScore'} type The type of power-up.
+     * Activates a specified power-up, applying its effects 
+     * to the game, and sets the corresponding game message. 
+     *
+     * @param {PowerUpType} powerUpType - The type of power-up to activate.
      */
-    const applyPowerUpEffect = useCallback((type: 'speed' | 'freeze' | 'doubleScore'): void => {
-        const endTime = Date.now() + POWER_UP_DURATION_MS;
-        setActivePowerUp({ type, endTime });
-        setGameMessage(`${type.charAt(0).toUpperCase() + type.slice(1)} Power-up activated!`);
-    }, []);
+    const activatePowerUp = (powerUpType: PowerUpType) => {
+        const now = Date.now();
+
+        // Handle mystery box - randomly select another powerup
+        if (powerUpType === 'mysteryBox') {
+            const availablePowerUps: PowerUpType[] = (Object.keys(POWERUP_DURATIONS) as PowerUpType[]).filter((p: PowerUpType) => p !== 'mysteryBox');
+            powerUpType = availablePowerUps[Math.floor(Math.random() * availablePowerUps.length)];
+            setGameMessage(`Mystery Box revealed: ${powerUpType}!`);
+        }
+
+        // Handle instant powerups
+        if (powerUpType === 'goldenApple') {
+            setScore(prevScore => prevScore + 5);
+            setGameMessage("Golden Apple! +5 points!");
+            return;
+        }
+
+        // Handle timed powerups
+        const duration = POWERUP_DURATIONS[powerUpType];
+        const newPowerUp: ActivePowerUp = {
+            type: powerUpType,
+            startTime: now,
+            endTime: now + duration,
+            isInstant: duration === 0
+        };
+
+        setActivePowerUp(newPowerUp);
+
+        // Set appropriate message for each powerup
+        const messages: Record<PowerUpType, string> = {
+            ghostTime: "Ghost Mode: Pass through walls and yourself!",
+            magnetHead: "Magnet Head: Food is drawn to you!",
+            doubleScore: "Double Score: All food worth 2x points!",
+            speedBoost: "Speed Boost: Lightning fast!",
+            snailTime: "Snail Time: Slow but double points!",
+            blackoutMode: "Blackout Mode: Limited vision!",
+            goldenApple: "Golden Apple! +5 points!",
+            mysteryBox: "Mystery Box revealed!",
+        };
+
+        setGameMessage(messages[powerUpType] || `${powerUpType} activated!`);
+    };
+
+
+    // collision detection with ghost mode
+    const checkCollisions = (head: Position, body: Position[]): boolean => {
+        // Ghost mode allows passing through walls and body
+        if (activePowerUp && activePowerUp.type === 'ghostTime') {
+            return false;
+        }
+
+        // Check wall collision
+        if (head.x < 0 || head.x >= GRID_SIZE || head.y < 0 || head.y >= GRID_SIZE) {
+            return true;
+        }
+
+        // Check self collision
+        return body.some(segment => segment.x === head.x && segment.y === head.y);
+    };
 
     /**
      * Updates the game state in each frame of the game loop.
@@ -154,10 +242,8 @@ export const useSnakeGame = (canvasContextRef: CanvasContextRef): UseSnakeGameRe
         changingDirectionRef.current = false;
 
         setSnake((prevSnake: SnakeSegment[]) => {
-            // If game is over or frozen, don't update snake position
-            if (isGameOver || (activePowerUp && activePowerUp.type === 'freeze')) {
-                return prevSnake;
-            }
+            // If game is over, don't update snake position
+            if (isGameOver) return prevSnake;
 
             const head: SnakeSegment = { x: prevSnake[0].x, y: prevSnake[0].y };
             const newSnake: SnakeSegment[] = [...prevSnake]; // Changed to const to fix ESLint error
@@ -218,7 +304,7 @@ export const useSnakeGame = (canvasContextRef: CanvasContextRef): UseSnakeGameRe
                 return newSnake;
             }
         });
-    }, [direction, food, powerUp, isGameOver, activePowerUp, checkCollision, generateCollectible, applyPowerUpEffect]);
+    }, [direction, food, powerUp, isGameOver, activePowerUp, checkCollision, generateCollectible]);
 
 
     /**
@@ -296,45 +382,84 @@ export const useSnakeGame = (canvasContextRef: CanvasContextRef): UseSnakeGameRe
     useEffect(() => {
         let gameIntervalId: NodeJS.Timeout | undefined;
         let powerUpTimerId: NodeJS.Timeout | undefined;
+        let magnetIntervalId: NodeJS.Timeout | undefined;
 
         if (isGameStarted && !isGameOver) {
             // Determine effective speed based on power-up
             let currentSpeed: number = INITIAL_SNAKE_SPEED_MS;
-            if (activePowerUp && activePowerUp.type === 'speed') {
-                currentSpeed = INITIAL_SNAKE_SPEED_MS / 2; // Half the interval for double speed
+
+            if (activePowerUp) {
+                switch (activePowerUp.type) {
+                    case 'speedBoost':
+                        currentSpeed = INITIAL_SNAKE_SPEED_MS / 2; // Double speed
+                        break;
+                    case 'snailTime':
+                        currentSpeed = INITIAL_SNAKE_SPEED_MS * 2.5; // Much slower
+                        break;
+                }
             }
 
             // Start the game update interval
-            if (activePowerUp && activePowerUp.type === 'freeze') {
-                // Do nothing if frozen - gameIntervalId will not be set
-            } else {
-                gameIntervalId = setInterval(update, currentSpeed);
+            gameIntervalId = setInterval(update, currentSpeed);
+
+            // Handle magnet powerup - continuously pull food toward snake head
+            if (activePowerUp && activePowerUp.type === 'magnetHead') {
+                magnetIntervalId = setInterval(() => {
+                    setFood(currentFood => {
+                        if (!currentFood || !snake.length) return currentFood;
+
+                        const head = snake[0];
+                        const dx = head.x - currentFood.x;
+                        const dy = head.y - currentFood.y;
+
+                        // Move food closer to snake head (1 cell at a time)
+                        let newX = currentFood.x;
+                        let newY = currentFood.y;
+
+                        if (Math.abs(dx) > Math.abs(dy)) {
+                            newX += dx > 0 ? 1 : -1;
+                        } else {
+                            newY += dy > 0 ? 1 : -1;
+                        }
+
+                        // Keep food within bounds
+                        newX = Math.max(0, Math.min(GRID_SIZE - 1, newX));
+                        newY = Math.max(0, Math.min(GRID_SIZE - 1, newY));
+
+                        return { x: newX, y: newY };
+                    });
+                }, 200); // Move food every 200ms
             }
 
             // Start power-up expiration timer
-            if (activePowerUp) {
+            if (activePowerUp && !activePowerUp.isInstant) {
                 const remainingTime: number = activePowerUp.endTime - Date.now();
                 if (remainingTime > 0) {
                     powerUpTimerId = setTimeout(() => {
-                        setActivePowerUp(null); // Deactivate power-up
-                        setGameMessage(`${activePowerUp.type.charAt(0).toUpperCase() + activePowerUp.type.slice(1)} Power-up expired.`);
+                        const expiredPowerUp = activePowerUp.type;
+                        setActivePowerUp(null);
+
+                        // Special cleanup for certain powerups
+                        if (expiredPowerUp === 'blackoutMode') {
+                            // Reset vision back to normal
+                            setGameMessage("Vision restored!");
+                        } else {
+                            setGameMessage(`${expiredPowerUp.charAt(0).toUpperCase() + expiredPowerUp.slice(1)} expired!`);
+                        }
                     }, remainingTime);
                 } else {
-                    // If power-up already expired (e.g., due to tab switch)
+                    // If power-up already expired
                     setActivePowerUp(null);
                 }
             }
         }
 
         return () => {
-            if (gameIntervalId) {
-                clearInterval(gameIntervalId);
-            }
-            if (powerUpTimerId) {
-                clearTimeout(powerUpTimerId);
-            }
+            if (gameIntervalId) clearInterval(gameIntervalId);
+            if (powerUpTimerId) clearTimeout(powerUpTimerId);
+            if (magnetIntervalId) clearInterval(magnetIntervalId);
         };
-    }, [isGameStarted, isGameOver, activePowerUp, update]);
+    }, [isGameStarted, isGameOver, activePowerUp, update, snake, food]);
 
     // Effect for adding/removing keyboard event listener
     useEffect(() => {
@@ -362,6 +487,6 @@ export const useSnakeGame = (canvasContextRef: CanvasContextRef): UseSnakeGameRe
     return {
         snake, food, powerUp, activePowerUp, direction, score,
         isGameOver, isGameStarted, gameMessage,
-        initGame, startGame, changeDirection, 
+        initGame, startGame, changeDirection,
     };
 };
