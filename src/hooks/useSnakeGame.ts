@@ -19,7 +19,10 @@ interface UseSnakeGameReturn {
     gameMessage: string;
     initGame: () => void;
     startGame: () => void;
-    changeDirection: (keyCode: number) => void; // Expose changeDirection for touch controls
+    changeDirection: (keyCode: number) => void;
+    activatePowerUp: (powerUpType: PowerUpType) => void;
+    checkCollisions: (head: Position, body: Position[]) => boolean;
+    getVisibleCells: (snakeHead: Position) => Set<string>;
 }
 
 interface Position {
@@ -28,8 +31,8 @@ interface Position {
 }
 
 const POWERUP_DURATIONS = {
-    ghostTime: 5000,      // 5 seconds
-    magnetHead: 10000,    // 10 seconds
+    ghostTime: 8000,      // 8 seconds
+    magnetHead: 10000,    // 10 seconds // Initially Doesn't work 
     doubleScore: 8000,    // 8 seconds
     speedBoost: 6000,     // 6 seconds
     snailTime: 12000,     // 12 seconds
@@ -40,7 +43,8 @@ const POWERUP_DURATIONS = {
 
 // Powerup spawn chances (out of 100)
 const POWERUP_SPAWN_CHANCES = {
-    ghostTime: 12,
+    // ghostTime: 12,
+    ghostTime: 1200,
     magnetHead: 15,
     doubleScore: 18,
     goldenApple: 8,
@@ -63,7 +67,7 @@ export const useSnakeGame = (canvasContextRef: CanvasContextRef): UseSnakeGameRe
     const [gameMessage, setGameMessage] = useState<string>('');
 
     // Ref for mutable value that doesn't trigger re-renders
-    const changingDirectionRef = useRef<boolean>(false); // Flag to prevent rapid direction changes
+    const changingDirectionRef = useRef<boolean>(false);
 
     /**
      * Helper to get random coordinates on the grid.
@@ -78,10 +82,6 @@ export const useSnakeGame = (canvasContextRef: CanvasContextRef): UseSnakeGameRe
     /**
      * Generates new random coordinates for food or power-up.
      * Ensures collectible does not appear on the snake's body or another collectible.
-     * @param {SnakeSegment[]} currentSnake The current snake array.
-     * @param {Food | null} currentFood Current food position.
-     * @param {PowerUp | null} currentPowerUp Current power-up position.
-     * @returns {Object} New collectible coordinates {x, y}.
      */
     const generateCollectiblePosition = useCallback((
         currentSnake: SnakeSegment[],
@@ -113,23 +113,26 @@ export const useSnakeGame = (canvasContextRef: CanvasContextRef): UseSnakeGameRe
                 collisionDetected = true;
             }
 
-        } while (collisionDetected); // Keep generating until no collision
+        } while (collisionDetected);
 
         return newCollectiblePos;
     }, [getRandomGridCoords]);
 
     /**
      * Decides whether to generate food or a power-up, and sets its position.
-     * @param {SnakeSegment[]} currentSnake The current snake array.
      */
     const generateCollectible = useCallback((currentSnake: SnakeSegment[]): void => {
+        // First clear any existing collectibles
+        setFood(null);
+        setPowerUp(null);
+
         // Choose a random power-up type to determine spawn chance
         const types: PowerUpType[] = ['ghostTime', 'magnetHead', 'doubleScore', 'goldenApple', 'speedBoost', 'snailTime', 'mysteryBox', 'blackoutMode'];
         const randomType = types[Math.floor(Math.random() * types.length)];
-        const shouldSpawnPowerUp = Math.random() < (POWERUP_SPAWN_CHANCES[randomType] / 100) && !powerUp;
+        const shouldSpawnPowerUp = Math.random() < (POWERUP_SPAWN_CHANCES[randomType] / 100);
 
         if (shouldSpawnPowerUp) {
-            const newPowerUpPos = generateCollectiblePosition(currentSnake, food, powerUp);
+            const newPowerUpPos = generateCollectiblePosition(currentSnake, null, null);
             setPowerUp({
                 ...newPowerUpPos,
                 type: randomType,
@@ -137,43 +140,40 @@ export const useSnakeGame = (canvasContextRef: CanvasContextRef): UseSnakeGameRe
                 isInstant: (POWERUP_DURATIONS[randomType] || 0) === 0
             });
         } else {
-            const newFoodPos = generateCollectiblePosition(currentSnake, food, powerUp);
+            const newFoodPos = generateCollectiblePosition(currentSnake, null, null);
             setFood(newFoodPos);
         }
-    }, [generateCollectiblePosition, food, powerUp]);
-
+    }, [generateCollectiblePosition]);
 
     /**
-     * Checks for game over conditions:
-     * 1. Snake hitting the canvas walls.
-     * 2. Snake hitting its own body.
-     * @param {SnakeSegment[]} currentSnake The current snake array.
-     * @returns {boolean} True if collision detected, false otherwise.
+     * Checks for game over conditions with proper collision detection.
      */
     const checkCollision = useCallback((currentSnake: SnakeSegment[]): boolean => {
         const head = currentSnake[0];
 
+        // Ghost mode allows passing through walls and body
+        if (activePowerUp && activePowerUp.type === 'ghostTime') {
+            return false;
+        }
+
         // Check collision with walls
         if (head.x < 0 || head.x >= CANVAS_WIDTH || head.y < 0 || head.y >= CANVAS_HEIGHT) {
-            return true; // Wall collision
+            return true;
         }
 
         // Check collision with its own body (start checking from the 1st segment after head)
         for (let i = 1; i < currentSnake.length; i++) {
             if (head.x === currentSnake[i].x && head.y === currentSnake[i].y) {
-                return true; // Self collision
+                return true;
             }
         }
-        return false; // No collision
-    }, []);
+        return false;
+    }, [activePowerUp]);
 
     /**
-     * Activates a specified power-up, applying its effects 
-     * to the game, and sets the corresponding game message. 
-     *
-     * @param {PowerUpType} powerUpType - The type of power-up to activate.
+     * Applies the effect of a power-up when collected.
      */
-    const activatePowerUp = (powerUpType: PowerUpType) => {
+    const applyPowerUpEffect = useCallback((powerUpType: PowerUpType): void => {
         const now = Date.now();
 
         // Handle mystery box - randomly select another powerup
@@ -187,6 +187,7 @@ export const useSnakeGame = (canvasContextRef: CanvasContextRef): UseSnakeGameRe
         if (powerUpType === 'goldenApple') {
             setScore(prevScore => prevScore + 5);
             setGameMessage("Golden Apple! +5 points!");
+            setPowerUp(null);
             return;
         }
 
@@ -196,10 +197,13 @@ export const useSnakeGame = (canvasContextRef: CanvasContextRef): UseSnakeGameRe
             type: powerUpType,
             startTime: now,
             endTime: now + duration,
-            isInstant: duration === 0
+            isInstant: duration === 0,
+            x: powerUp?.x ?? 0,
+            y: powerUp?.y ?? 0
         };
 
         setActivePowerUp(newPowerUp);
+        setPowerUp(null);
 
         // Set appropriate message for each powerup
         const messages: Record<PowerUpType, string> = {
@@ -214,40 +218,78 @@ export const useSnakeGame = (canvasContextRef: CanvasContextRef): UseSnakeGameRe
         };
 
         setGameMessage(messages[powerUpType] || `${powerUpType} activated!`);
-    };
+    }, [powerUp]);
 
+    /**
+     * Activates a specified power-up (exposed function for external use).
+     */
+    const activatePowerUp = useCallback((powerUpType: PowerUpType) => {
+        applyPowerUpEffect(powerUpType);
+    }, [applyPowerUpEffect]);
 
-    // collision detection with ghost mode
-    const checkCollisions = (head: Position, body: Position[]): boolean => {
-        // Ghost mode allows passing through walls and body
-        if (activePowerUp && activePowerUp.type === 'ghostTime') {
-            return false;
+    /**
+     * Get visible cells for blackout mode.
+     */
+    const getVisibleCells = useCallback((snakeHead: Position): Set<string> => {
+        if (!activePowerUp || activePowerUp.type !== 'blackoutMode') {
+            return new Set();
         }
 
-        // Check wall collision
-        if (head.x < 0 || head.x >= GRID_SIZE || head.y < 0 || head.y >= GRID_SIZE) {
-            return true;
+        const visibleCells = new Set<string>();
+        const visionRadius = 3;
+
+        for (let dx = -visionRadius; dx <= visionRadius; dx++) {
+            for (let dy = -visionRadius; dy <= visionRadius; dy++) {
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance <= visionRadius) {
+                    const x = snakeHead.x + (dx * GRID_SIZE);
+                    const y = snakeHead.y + (dy * GRID_SIZE);
+                    if (x >= 0 && x < CANVAS_WIDTH && y >= 0 && y < CANVAS_HEIGHT) {
+                        visibleCells.add(`${x},${y}`);
+                    }
+                }
+            }
         }
 
-        // Check self collision
-        return body.some(segment => segment.x === head.x && segment.y === head.y);
-    };
+        return visibleCells;
+    }, [activePowerUp]);
+
+    // Key changes to fix Ghost Mode in useSnakeGame.ts
+
+    // Add this helper function after the existing helper functions:
+    const wrapPosition = useCallback((x: number, y: number): { x: number; y: number } => {
+        let wrappedX = x;
+        let wrappedY = y;
+
+        // Wrap horizontally
+        if (x < 0) {
+            wrappedX = CANVAS_WIDTH - GRID_SIZE;
+        } else if (x >= CANVAS_WIDTH) {
+            wrappedX = 0;
+        }
+
+        // Wrap vertically
+        if (y < 0) {
+            wrappedY = CANVAS_HEIGHT - GRID_SIZE;
+        } else if (y >= CANVAS_HEIGHT) {
+            wrappedY = 0;
+        }
+
+        return { x: wrappedX, y: wrappedY };
+    }, []);
 
     /**
      * Updates the game state in each frame of the game loop.
      */
     const update = useCallback((): void => {
-        // Reset the direction changing flag at the start of each update
-        // This allows new direction changes to be processed in the next update cycle
         changingDirectionRef.current = false;
 
         setSnake((prevSnake: SnakeSegment[]) => {
-            // If game is over, don't update snake position
             if (isGameOver) return prevSnake;
 
             const head: SnakeSegment = { x: prevSnake[0].x, y: prevSnake[0].y };
-            const newSnake: SnakeSegment[] = [...prevSnake]; // Changed to const to fix ESLint error
-            let collectibleEaten: boolean = false; // Flag to track if any collectible was eaten
+            const newSnake: SnakeSegment[] = [...prevSnake];
+            let collectibleEaten: boolean = false;
 
             // Move the snake's head based on current direction
             switch (direction) {
@@ -265,54 +307,80 @@ export const useSnakeGame = (canvasContextRef: CanvasContextRef): UseSnakeGameRe
                     break;
             }
 
-            // Add the new head to the beginning of the snake array
+            // Handle Ghost Mode - wrap around screen edges
+            if (activePowerUp && activePowerUp.type === 'ghostTime') {
+                const wrappedPos = wrapPosition(head.x, head.y);
+                head.x = wrappedPos.x;
+                head.y = wrappedPos.y;
+            }
+
             newSnake.unshift(head);
 
             // Check for collision with food
             if (food && head.x === food.x && head.y === food.y) {
-                setScore((prevScore: number) => prevScore + (activePowerUp && activePowerUp.type === 'doubleScore' ? 2 : 1));
+                const pointsToAdd = (activePowerUp && (activePowerUp.type === 'doubleScore' || activePowerUp.type === 'snailTime')) ? 2 : 1/2;
+                setScore((prevScore: number) => prevScore + pointsToAdd);
                 collectibleEaten = true;
+                setFood(null);
             }
             // Check for collision with power-up
             else if (powerUp && head.x === powerUp.x && head.y === powerUp.y) {
                 applyPowerUpEffect(powerUp.type);
                 collectibleEaten = true;
-                // Snake does not grow from power-ups, so pop the tail
-                newSnake.pop();
+                newSnake.pop(); // Snake doesn't grow from power-ups
             }
 
-            // If no collectible was eaten, remove the tail (normal movement)
+            // If no collectible was eaten, remove the tail
             if (!collectibleEaten) {
                 newSnake.pop();
             }
 
-            // If any collectible was eaten, generate the next one
+            // Generate new collectible if one was eaten
             if (collectibleEaten) {
-                generateCollectible(newSnake); // This ensures a new food or power-up spawns
+                setTimeout(() => generateCollectible(newSnake), 0);
             }
 
-            // Check for collisions with the updated snake
+            // Check for collisions (this will return false during ghost mode)
             if (checkCollision(newSnake)) {
-                // Use setScore to capture current score in gameOver message
                 setScore((currentScore) => {
                     setIsGameOver(true);
                     setIsGameStarted(false);
+                    setGameMessage(`Game Over! <br/> Final Score: ${currentScore}`);
                     return currentScore;
                 });
-                return prevSnake; // Return previous snake to show final state before game over
-            } else {
-                return newSnake;
+                return prevSnake;
             }
-        });
-    }, [direction, food, powerUp, isGameOver, activePowerUp, checkCollision, generateCollectible]);
 
+            return newSnake;
+        });
+    }, [direction, food, powerUp, isGameOver, activePowerUp, checkCollision, generateCollectible, applyPowerUpEffect, wrapPosition]);
+
+    // Also update the checkCollisions function to be more explicit:
+    const checkCollisions = useCallback((head: Position, body: Position[]): boolean => {
+        // Ghost mode allows passing through walls and body
+        if (activePowerUp && activePowerUp.type === 'ghostTime') {
+            return false;
+        }
+
+        // Check wall collision
+        if (head.x < 0 || head.x >= CANVAS_WIDTH || head.y < 0 || head.y >= CANVAS_HEIGHT) {
+            return true;
+        }
+
+        // Check self collision (exclude head from body check)
+        for (let i = 0; i < body.length; i++) {
+            if (body[i].x === head.x && body[i].y === head.y) {
+                return true;
+            }
+        }
+
+        return false;
+    }, [activePowerUp]);
 
     /**
      * Initializes the game state.
-     * Resets snake, food, score, direction, and game flags.
      */
     const initGame = useCallback((): void => {
-        // Calculate initial head position, slightly to the left of center for a right-moving snake
         const initialHeadX: number = Math.floor((CANVAS_WIDTH / 2 - GRID_SIZE) / GRID_SIZE) * GRID_SIZE;
         const initialHeadY: number = Math.floor(CANVAS_HEIGHT / 2 / GRID_SIZE) * GRID_SIZE;
 
@@ -327,33 +395,35 @@ export const useSnakeGame = (canvasContextRef: CanvasContextRef): UseSnakeGameRe
         setScore(0);
         setIsGameOver(false);
         setIsGameStarted(false);
-        setGameMessage('');
+        setGameMessage('Press any arrow key to start!');
         changingDirectionRef.current = false;
         setPowerUp(null);
         setActivePowerUp(null);
 
-        // Generate initial food (or power-up)
+        // Generate initial food
         const newFoodPos: Food = generateCollectiblePosition(initialSnake, null, null);
-        setFood(newFoodPos); // Set initial food
+        setFood(newFoodPos);
     }, [generateCollectiblePosition]);
 
-
     /**
-     * Handles keyboard or touch input for changing snake direction.
-     * Prevents snake from immediately reversing direction.
-     * @param {number} keyCode The key code corresponding to direction.
+     * Handles direction changes with proper validation.
      */
     const changeDirection = useCallback((keyCode: number): void => {
-        // Prevent changing direction multiple times within one update cycle
-        if (changingDirectionRef.current || !isGameStarted || isGameOver) return;
-        changingDirectionRef.current = true; // Set flag to true to prevent further changes
+        if (changingDirectionRef.current || isGameOver) return;
+
+        // Auto-start game on first direction input
+        if (!isGameStarted) {
+            setIsGameStarted(true);
+            setGameMessage('');
+        }
+
+        changingDirectionRef.current = true;
 
         const goingUp: boolean = direction === 'up';
         const goingDown: boolean = direction === 'down';
         const goingLeft: boolean = direction === 'left';
         const goingRight: boolean = direction === 'right';
 
-        // Update direction only if valid and not reversing
         if (keyCode === LEFT_KEY && !goingRight) {
             setDirection('left');
         } else if (keyCode === UP_KEY && !goingDown) {
@@ -365,45 +435,41 @@ export const useSnakeGame = (canvasContextRef: CanvasContextRef): UseSnakeGameRe
         }
     }, [direction, isGameStarted, isGameOver]);
 
-
     /**
-     * Starts the game by setting the isGameStarted flag to true.
-     * The actual game loop (setInterval) will be managed by a useEffect.
+     * Starts the game manually.
      */
     const startGame = useCallback((): void => {
         if (!isGameStarted && !isGameOver) {
             setIsGameStarted(true);
-            setGameMessage(''); // Clear any previous messages
+            setGameMessage('');
         }
     }, [isGameStarted, isGameOver]);
 
-
-    // Effect for managing the game loop (setInterval) and power-up expiration
+    // Game loop and power-up management effect
     useEffect(() => {
         let gameIntervalId: NodeJS.Timeout | undefined;
         let powerUpTimerId: NodeJS.Timeout | undefined;
         let magnetIntervalId: NodeJS.Timeout | undefined;
 
         if (isGameStarted && !isGameOver) {
-            // Determine effective speed based on power-up
+            // Determine speed based on active power-up
             let currentSpeed: number = INITIAL_SNAKE_SPEED_MS;
 
             if (activePowerUp) {
                 switch (activePowerUp.type) {
                     case 'speedBoost':
-                        currentSpeed = INITIAL_SNAKE_SPEED_MS / 2; // Double speed
+                        currentSpeed = INITIAL_SNAKE_SPEED_MS / 2;
                         break;
                     case 'snailTime':
-                        currentSpeed = INITIAL_SNAKE_SPEED_MS * 2.5; // Much slower
+                        currentSpeed = INITIAL_SNAKE_SPEED_MS * 2.5;
                         break;
                 }
             }
 
-            // Start the game update interval
             gameIntervalId = setInterval(update, currentSpeed);
 
-            // Handle magnet powerup - continuously pull food toward snake head
-            if (activePowerUp && activePowerUp.type === 'magnetHead') {
+            // Handle magnet powerup
+            if (activePowerUp && activePowerUp.type === 'magnetHead' && food) {
                 magnetIntervalId = setInterval(() => {
                     setFood(currentFood => {
                         if (!currentFood || !snake.length) return currentFood;
@@ -412,43 +478,35 @@ export const useSnakeGame = (canvasContextRef: CanvasContextRef): UseSnakeGameRe
                         const dx = head.x - currentFood.x;
                         const dy = head.y - currentFood.y;
 
-                        // Move food closer to snake head (1 cell at a time)
                         let newX = currentFood.x;
                         let newY = currentFood.y;
 
-                        if (Math.abs(dx) > Math.abs(dy)) {
-                            newX += dx > 0 ? 1 : -1;
-                        } else {
-                            newY += dy > 0 ? 1 : -1;
+                        // Move food one grid cell at a time toward snake head
+                        if (Math.abs(dx) >= GRID_SIZE) {
+                            newX += dx > 0 ? GRID_SIZE : -GRID_SIZE;
+                        } else if (Math.abs(dy) >= GRID_SIZE) {
+                            newY += dy > 0 ? GRID_SIZE : -GRID_SIZE;
                         }
 
                         // Keep food within bounds
-                        newX = Math.max(0, Math.min(GRID_SIZE - 1, newX));
-                        newY = Math.max(0, Math.min(GRID_SIZE - 1, newY));
+                        newX = Math.max(0, Math.min(CANVAS_WIDTH - GRID_SIZE, newX));
+                        newY = Math.max(0, Math.min(CANVAS_HEIGHT - GRID_SIZE, newY));
 
                         return { x: newX, y: newY };
                     });
-                }, 200); // Move food every 200ms
+                }, 300);
             }
 
-            // Start power-up expiration timer
+            // Handle power-up expiration
             if (activePowerUp && !activePowerUp.isInstant) {
                 const remainingTime: number = activePowerUp.endTime - Date.now();
                 if (remainingTime > 0) {
                     powerUpTimerId = setTimeout(() => {
                         const expiredPowerUp = activePowerUp.type;
                         setActivePowerUp(null);
-
-                        // Special cleanup for certain powerups
-                        if (expiredPowerUp === 'blackoutMode') {
-                            // Reset vision back to normal
-                            setGameMessage("Vision restored!");
-                        } else {
-                            setGameMessage(`${expiredPowerUp.charAt(0).toUpperCase() + expiredPowerUp.slice(1)} expired!`);
-                        }
+                        setGameMessage(`${expiredPowerUp} expired!`);
                     }, remainingTime);
                 } else {
-                    // If power-up already expired
                     setActivePowerUp(null);
                 }
             }
@@ -461,32 +519,30 @@ export const useSnakeGame = (canvasContextRef: CanvasContextRef): UseSnakeGameRe
         };
     }, [isGameStarted, isGameOver, activePowerUp, update, snake, food]);
 
-    // Effect for adding/removing keyboard event listener
+    // Keyboard event listener
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
-            // Prevent default browser behavior for arrow keys (e.g., scrolling)
-            if ([LEFT_KEY, UP_KEY, RIGHT_KEY, DOWN_KEY].includes(event.keyCode as typeof LEFT_KEY | typeof UP_KEY | typeof RIGHT_KEY | typeof DOWN_KEY)) {
+            const arrowKeys = [LEFT_KEY, UP_KEY, RIGHT_KEY, DOWN_KEY];
+            if (arrowKeys.includes(event.keyCode as any)) {
                 event.preventDefault();
+                changeDirection(event.keyCode);
             }
-            changeDirection(event.keyCode);
         };
+
         document.addEventListener('keydown', handleKeyDown);
-        return () => {
-            document.removeEventListener('keydown', handleKeyDown);
-        };
+        return () => document.removeEventListener('keydown', handleKeyDown);
     }, [changeDirection]);
 
-    // Initial game setup (called once when the canvas context is ready)
+    // Initialize game when canvas context is ready
     useEffect(() => {
         if (canvasContextRef.current) {
             initGame();
         }
-    }, [initGame, canvasContextRef]); // Dependency on canvasContextRef to ensure it's ready
-
+    }, [initGame, canvasContextRef]);
 
     return {
         snake, food, powerUp, activePowerUp, direction, score,
-        isGameOver, isGameStarted, gameMessage,
-        initGame, startGame, changeDirection,
+        isGameOver, isGameStarted, gameMessage, activatePowerUp,
+        initGame, startGame, changeDirection, checkCollisions, getVisibleCells
     };
 };

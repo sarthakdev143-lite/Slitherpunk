@@ -146,7 +146,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
                 goldenApple: { primary: `rgba(255, 215, 0, ${glow})`, secondary: `rgba(230, 190, 0, ${glow})` },
                 snailTime: { primary: `rgba(54, 162, 235, ${glow})`, secondary: `rgba(75, 192, 192, ${glow})` },
                 mysteryBox: { primary: `rgba(255, 99, 132, ${glow})`, secondary: `rgba(220, 53, 69, ${glow})` },
-                blackout: { primary: `rgba(64, 64, 64, ${glow})`, secondary: `rgba(49, 49, 49, ${glow})` },
+                blackoutMode: { primary: `rgba(64, 64, 64, ${glow})`, secondary: `rgba(49, 49, 49, ${glow})` },
             };
 
             const powerUpGradient = ctx.createRadialGradient(
@@ -188,7 +188,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
                 goldenApple: '🍎',
                 snailTime: '🐌',
                 mysteryBox: '🎁',
-                blackout: '⚫️'
+                blackoutMode: '⚫️'
             };
 
             ctx.fillText(

@@ -19,7 +19,7 @@ export const GameUI: React.FC<GameUIProps> = ({
     const getPowerUpIcon = (type: string) => {
         switch (type) {
             case 'speedBoost': return '⚡';
-            case 'doubleScore': return '2×'; 
+            case 'doubleScore': return '2×';
             case 'ghostTime': return '👻';
             case 'magnetHead': return '🧲';
             case 'goldenApple': return '🍎';
@@ -124,7 +124,8 @@ export const GameUI: React.FC<GameUIProps> = ({
                 border: 'border-red-400',
                 shadow: 'shadow-[0_0_25px_rgba(239,68,68,0.4)]',
                 text: 'text-red-300',
-                icon: '💀'
+                icon: '💀',
+                breakline: true
             };
         } else if (lowerMessage.includes('level') || lowerMessage.includes('bonus') || lowerMessage.includes('great')) {
             return {
@@ -293,7 +294,7 @@ export const GameUI: React.FC<GameUIProps> = ({
 
                                         <div className={`text-xs leading-tight tracking-wider ${messageStyle.text}`}>
                                             {gameMessage.split(' ').map((word, index) => (
-                                                <span
+                                                word == "<br/>" ? <br className="mb-1" /> : <span
                                                     key={index}
                                                     className="inline-block"
                                                     style={{

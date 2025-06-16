@@ -14,7 +14,7 @@ export interface Food {
 
 export type PowerUpType = 'ghostTime' | 'magnetHead' | 'doubleScore' | 'goldenApple' | 'speedBoost' | 'snailTime' | 'mysteryBox' | 'blackoutMode';
 
-export interface PowerUp {
+export interface PowerUp extends Food {
   type: PowerUpType;
   endTime: number;
   isInstant?: boolean;
