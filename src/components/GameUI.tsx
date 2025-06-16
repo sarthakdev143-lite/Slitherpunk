@@ -294,7 +294,7 @@ export const GameUI: React.FC<GameUIProps> = ({
 
                                         <div className={`text-xs leading-tight tracking-wider ${messageStyle.text}`}>
                                             {gameMessage.split(' ').map((word, index) => (
-                                                word == "<br/>" ? <br className="mb-1" /> : <span
+                                                word == "<br/>" ? <br key={index} /> : <span
                                                     key={index}
                                                     className="inline-block"
                                                     style={{

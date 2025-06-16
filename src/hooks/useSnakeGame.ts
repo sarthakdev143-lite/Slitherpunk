@@ -521,8 +521,8 @@ export const useSnakeGame = (canvasContextRef: CanvasContextRef): UseSnakeGameRe
     // Keyboard event listener
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
-            const arrowKeys = [LEFT_KEY, UP_KEY, RIGHT_KEY, DOWN_KEY];
-            if (arrowKeys.includes(event.keyCode as any)) {
+            const arrowKeys: number[] = [LEFT_KEY, UP_KEY, RIGHT_KEY, DOWN_KEY];
+            if (arrowKeys.includes(event.keyCode)) {
                 event.preventDefault();
                 changeDirection(event.keyCode);
             }
